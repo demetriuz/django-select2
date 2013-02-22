@@ -1,6 +1,7 @@
 import json
 
 from django.http import HttpResponse
+from django.utils.importlib import import_module
 from django.views.generic import View
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
@@ -168,6 +169,25 @@ class Select2View(JSONResponseMixin, View):
         raise NotImplementedError
 
 
+from django.conf import settings
+FIELD_LOOKUP = getattr(settings, 'SELECT2_FIELD_LOOKUP',  {})
+
+# TODO: move to utils
+def import_class_or_none(import_path):
+    try:
+        dot = import_path.rindex('.')
+    except ValueError:
+        return None
+    module, classname = import_path[:dot], import_path[dot + 1:]
+    try:
+        mod = import_module(module)
+    except ImportError:
+        return None
+    try:
+        return getattr(mod, classname)
+    except AttributeError:
+        return None
+
 class AutoResponseView(Select2View):
     """
     A central view meant to respond to Ajax queries for all Heavy widgets/fields.
@@ -175,22 +195,37 @@ class AutoResponseView(Select2View):
 
     .. tip:: Fields which want to use this view must sub-class :py:class:`~.widgets.AutoViewFieldMixin`.
     """
+    # def check_all_permissions(self, request, *args, **kwargs):
+    #     id_ = request.GET.get('field_id', None)
+    #     if id_ is None or not is_valid_id(id_):
+    #         raise Http404('field_id not found or is invalid')
+    #     field = get_field(id_)
+    #     if field is None:
+    #         raise Http404('field_id not found')
+    #
+    #     if not field.security_check(request, *args, **kwargs):
+    #         raise PermissionDenied('permission denied')
+    #
+    #     request.__django_select2_local = field
+
+
     def check_all_permissions(self, request, *args, **kwargs):
-        id_ = request.GET.get('field_id', None)
-        if id_ is None or not is_valid_id(id_):
-            raise Http404('field_id not found or is invalid')
-        field = get_field(id_)
-        if field is None:
-            raise Http404('field_id not found')
-
-        if not field.security_check(request, *args, **kwargs):
-            raise PermissionDenied('permission denied')
-
-        request.__django_select2_local = field
+        pass
 
     def get_results(self, request, term, page, context):
-        field = request.__django_select2_local
-        del request.__django_select2_local
-        return field.get_results(request, term, page, context)
+        id_ = request.GET.get('field_id', None)
+        # get lookup from field_id
+        lookup_class_path = FIELD_LOOKUP.get(id_)
+        lookup_class = import_class_or_none(lookup_class_path)
+
+        if lookup_class is None:
+            raise Exception
+
+        lookup_object = lookup_class()
+        return lookup_object.get_results(request, term, page, context)
+
+        # field = request.__django_select2_local
+        # del request.__django_select2_local
+        # return field.get_results(request, term, page, context)
 
 
