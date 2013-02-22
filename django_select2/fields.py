@@ -37,13 +37,19 @@ class AutoViewFieldMixin(object):
         :type auto_id: :py:obj:`unicode`
 
         """
-        name = kwargs.pop('auto_id', u"%s.%s" % (self.__module__, self.__class__.__name__))
-        if logger.isEnabledFor(logging.INFO):
-            logger.info("Registering auto field: %s", name)
 
         from . import util
 
-        rf = util.register_field
+        name = kwargs.pop('auto_id', None)
+        if name is None:
+            rf = util.register_field
+            name = u"%s.%s" % (self.__module__, self.__class__.__name__)
+        else:
+            rf = util.register_permanent_field
+
+        if logger.isEnabledFor(logging.INFO):
+            logger.info("Registering auto field: %s", name)
+
         if logger.isEnabledFor(logging.DEBUG):
             rf = util.timer(rf)
 

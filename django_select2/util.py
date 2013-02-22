@@ -263,6 +263,28 @@ def register_field(key, field):
     return id_
 
 
+def register_permanent_field(key, field):
+    global __id_store, __field_store
+
+    from fields import AutoViewFieldMixin
+    if not isinstance(field, AutoViewFieldMixin):
+        raise ValueError('Field must extend AutoViewFieldMixin')
+
+    if key not in __field_store:
+        # Generating id
+        id_ = key
+        __field_store[key] = id_
+        __id_store[id_] = field
+
+        if logger.isEnabledFor(logging.INFO):
+            logger.info("Registering new field: %s; With actual id: %s", key, id_)
+    else:
+        id_ = __field_store[key]
+        if logger.isEnabledFor(logging.INFO):
+            logger.info("Field already registered: %s; With actual id: %s", key, id_)
+    return id_
+
+
 def get_field(id_):
     """
     Returns an Auto field instance registered with the given Id.
